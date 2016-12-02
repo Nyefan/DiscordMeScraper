@@ -1,31 +1,41 @@
-/**
- * Created by Nyefan on 12/1/2016.
- * Contact at nyefancoding@gmail.com
- * or through Github at github.com/nyefan
- *
- * @author  Nyefan
- * @contact  nyefancoding@gmail.com
- * @github  github.com/nyefan
- * @version 1.0
- * @since   2016-12(DEC)-02
- * @depends jaunt
- * @TODO    allow a plaintext file of queries to be passed in
- * @TODO    allow a plaintext file to be specified for output
- * @TODO    code in a hard End Of Life in keeping with the jaunt license
- */
-
 import com.jaunt.Element;
 import com.jaunt.JauntException;
 import com.jaunt.UserAgent;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.stream.IntStream;
 
+
+/**
+ * A basic scraper for discord.me
+ * @author  Nyefan
+ * contact  nyefancoding@gmail.com
+ * github   github.com/nyefan
+ * @version 1.1
+ * @since   2016-12(DEC)-02
+ * depends  jaunt
+ * TODO     alter the input parsing to handle options
+ * TODO     allow a plaintext file of queries to be passed in
+ * TODO     allow a plaintext file to be specified for output
+ */
 public class DiscordMeScraper {
 
     private static String searchTerm;
     private static int pageNumber;
 
+    /**
+     * @param   args    arg[0] should be the tag to search for; arg[1] should be the number of pages to scrape
+     * exit     1       no search term was input
+     * exit     2       the jaunt license has expired
+     */
     public static void main(String... args) {
+
+        if (LocalDateTime.now().isAfter(LocalDate.of(2017, 1, 1).atStartOfDay())) {
+            System.err.println("The Jaunt license has expired.  Please download the newest version to refresh the license.");
+            System.exit(2);
+        }
+
         try {
             searchTerm = args[0];
         } catch (IndexOutOfBoundsException ioobe) {
@@ -57,8 +67,7 @@ public class DiscordMeScraper {
     /**
      * Prints the results of the query to System.out
      * @param   searchTerm  The tag to be entered in the search box on discord.me
-     * @param   pageNumber  The page (set of 32) to query; this must be less than 999/32
-     * @throws  JauntException
+     * @param   pageNumber  The page (set of 32) to query; this is ideally <= 31
      */
     private static void queryPage(String searchTerm, int pageNumber) throws JauntException {
 
