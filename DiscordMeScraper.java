@@ -4,7 +4,7 @@
  * or through Github at github.com/nyefan
  *
  * @author  Nyefan
- * @contac  nyefancoding@gmail.com
+ * @contact  nyefancoding@gmail.com
  * @github  github.com/nyefan
  * @version 1.0
  * @since   2016-12(DEC)-02
