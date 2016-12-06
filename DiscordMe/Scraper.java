@@ -1,3 +1,5 @@
+package DiscordMe;
+
 import com.jaunt.Element;
 import com.jaunt.JauntException;
 import com.jaunt.UserAgent;
@@ -19,7 +21,7 @@ import java.util.stream.IntStream;
  * TODO     allow a plaintext file of queries to be passed in
  * TODO     allow a plaintext file to be specified for output
  */
-public class DiscordMeScraper {
+public class Scraper {
 
     private static String searchTerm;
     private static int pageNumber;
@@ -49,40 +51,49 @@ public class DiscordMeScraper {
             pageNumber = 1;
         }
 
+        QueryAndPrintResultsToConsole(searchTerm, pageNumber);
+
+    }
+
+    /**
+     * Completes the query and prints the results to the console
+     * @param   searchTerm  The tag to be entered in the search box on discord.me
+     * @param   pageNumber  The number of pages (set of 32) to query, starting from 1
+     */
+    private static void QueryAndPrintResultsToConsole(String searchTerm, int pageNumber) {
         System.out.println("Discord.me rankings by term - " + searchTerm + ": ");
         System.out.println("Pages 1-" + pageNumber);
 
         IntStream.rangeClosed(1, pageNumber)
                 .forEach(i -> {
                     try {
-                        queryPage(searchTerm, i);
+                        String[] serverNames = queryPage(searchTerm, i);
+                        IntStream.rangeClosed(1, serverNames.length)
+                                //This will break non-catastrophically if the number of servers queried is over 999
+                                .mapToObj(j -> String.format("%4s: %s", "#" + (32*(i-1)+j), serverNames[j-1]))
+                                .forEach(System.out::println);
                     } catch (JauntException je) {
                         System.err.println(je);
                     }
                 });
-
     }
 
-
     /**
-     * Prints the results of the query to System.out
+     * Returns a list of Server Names in the order they are ranked by discord.me for a given tag
      * @param   searchTerm  The tag to be entered in the search box on discord.me
-     * @param   pageNumber  The page (set of 32) to query; this is ideally <= 31
+     * @param   pageNumber  The page (set of 32) to query
+     * @return  An array of Server Names from the queried page - length 32
      */
-    private static void queryPage(String searchTerm, int pageNumber) throws JauntException {
+    private static String[] queryPage(String searchTerm, int pageNumber) throws JauntException {
 
         UserAgent userAgent = new UserAgent();
-        String[] serverNames = userAgent.visit(String.format("https://discord.me/servers/%s/%s", pageNumber, searchTerm))
+        return userAgent.visit(String.format("https://discord.me/servers/%s/%s", pageNumber, searchTerm))
                 .findFirst("<div class=col-md-8>")
                 .findEvery("<span class=server-name>")
                 .toList()
                 .stream()
                 .map(Element::innerHTML)
                 .toArray(String[]::new);
-        IntStream.rangeClosed(1, serverNames.length)
-                //This will break if the number of servers queried is over 999
-                .mapToObj(i -> String.format("%4s: %s", "#" + (32*(pageNumber-1)+i), serverNames[i-1]))
-                .forEach(System.out::println);
     }
 
 }
