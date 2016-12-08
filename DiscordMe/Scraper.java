@@ -4,8 +4,16 @@ import com.jaunt.Element;
 import com.jaunt.JauntException;
 import com.jaunt.UserAgent;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.postgresql.util.PSQLException;
+
+import java.io.FileReader;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.stream.IntStream;
 
 
@@ -15,11 +23,13 @@ import java.util.stream.IntStream;
  * contact  nyefancoding@gmail.com
  * github   github.com/nyefan
  * @version 1.1
- * @since   2016-12(DEC)-02
- * depends  jaunt1.2.3
+ * @since   2016-12(DEC)-08
+ * depends  jaunt1.2.3, json-simple-1.1.1
+ * @implNote
  * TODO     alter the input parsing to handle options
  * TODO     allow a plaintext file of queries to be passed in
  * TODO     allow a plaintext file to be specified for output
+ * TODO     alter the json scheme to use an Oauth token or similar security measure
  */
 public class Scraper {
 
@@ -30,6 +40,9 @@ public class Scraper {
      * @param   args    arg[0] should be the tag to search for; arg[1] should be the number of pages to scrape
      * exit     1       no search term was input
      * exit     2       the jaunt license has expired
+     * exit     3       no valid json file containing server connection data has been provided
+     * exit     4       the db_url, username, or password provided by DBINFO.json is invalid
+     * exit     5       Discord.me is not available or has altered its layout
      */
     public static void main(String... args) {
 
@@ -51,7 +64,20 @@ public class Scraper {
             pageNumber = 1;
         }
 
-        QueryAndPrintResultsToConsole(searchTerm, pageNumber);
+        try {
+            JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("DBINFO.json"));
+            Database db = new Database(connectionParameters.get("db_url").toString(),
+                    connectionParameters.get("user").toString(),
+                    connectionParameters.get("token").toString());
+            //TODO: insert the query results into the database
+            QueryAndPrintResultsToConsole(searchTerm, pageNumber);
+        } catch (ParseException | IOException e) {
+            e.printStackTrace();
+            System.exit(3);
+        } catch (PSQLException e) {
+            e.printStackTrace();
+            System.exit(4);
+        }
 
     }
 
@@ -64,22 +90,15 @@ public class Scraper {
         System.out.println("Discord.me rankings by term - " + searchTerm + ": ");
         System.out.println("Pages 1-" + pageNumber);
 
-        IntStream.rangeClosed(1, pageNumber)
-                .forEach(i -> {
-                    try {
-                        String[] serverNames = queryPage(searchTerm, i);
-                        IntStream.rangeClosed(1, serverNames.length)
-                                //This will break non-catastrophically if the number of servers queried is over 999
-                                .mapToObj(j -> String.format("%4s: %s", "#" + (32*(i-1)+j), serverNames[j-1]))
-                                .forEach(System.out::println);
-                    } catch (JauntException je) {
-                        System.err.println(je);
-                    }
-                });
+        String[] serverNames = queryPages(searchTerm, 1, pageNumber);
+        IntStream.rangeClosed(1, serverNames.length)
+                //This will break non-catastrophically if the number of servers queried is over 999
+                .mapToObj(i -> String.format("%4s: %s", "#" + i, serverNames[i-1]))
+                .forEach(System.out::println);
     }
 
     /**
-     * Returns a list of Server Names in the order they are ranked by discord.me for a given tag
+     * Returns a list of Server Names in the order they are ranked by discord.me for a given tag and page
      * @param   searchTerm  The tag to be entered in the search box on discord.me
      * @param   pageNumber  The page (set of 32) to query
      * @return  An array of Server Names from the queried page - length 32
@@ -93,6 +112,31 @@ public class Scraper {
                 .toList()
                 .stream()
                 .map(Element::innerHTML)
+                .toArray(String[]::new);
+    }
+
+    /**
+     * Returns a list of Server Names in the order they are ranked by discord.me for a given tag and set of (inclusive)
+     * pages.  The caller is responsible for ensuring that first <= last
+     * @param   searchTerm    The tag to be entered in the search box on discord.me
+     * @param   first         The first page (set of 32) in the range to query
+     * @param   last          The last page (set of 32) in the range to query
+     * @return  an array of Servery Names from the queried page range
+     */
+    private static String[] queryPages(String searchTerm, int first, int last) {
+        return IntStream.rangeClosed(first, last)
+                .mapToObj((int i) -> {
+                    String[] qp = new String[0];
+                    try {
+                        qp = queryPage(searchTerm, i);
+                    } catch (JauntException e) {
+                        e.printStackTrace();
+                        //This is preferable to writing an incomplete list to the db
+                        System.exit(5);
+                    }
+                    return qp;
+                })
+                .flatMap(Arrays::stream)
                 .toArray(String[]::new);
     }
 
