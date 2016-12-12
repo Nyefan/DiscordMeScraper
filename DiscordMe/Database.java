@@ -1,7 +1,7 @@
 package DiscordMe;
 
+import org.jetbrains.annotations.Contract;
 import org.postgresql.util.PSQLException;
-
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -11,11 +11,12 @@ import java.util.stream.IntStream;
 
 /**
  * A basic scraper for discord.me
- * @author  Nyefan
- * contact  nyefancoding@gmail.com
- * github   github.com/nyefan
+ *
+ * @author Nyefan
+ *         contact  nyefancoding@gmail.com
+ *         github   github.com/nyefan
  * @version 1.0
- * @since   2016-12(DEC)-08
+ * @since 2016-12(DEC)-08
  * depends  posgresql-9.4.1212
  */
 public class Database {
@@ -25,16 +26,18 @@ public class Database {
     /**
      * Prevents this object from being created without being connected to a database
      */
+    @Contract(" -> fail")
     private Database() {
         throw new IllegalStateException("This contructor should not be used.");
     }
 
     /**
      * Returns an instance of Database connected to the psqldb
-     * @param   databaseURL the URL at which the database can be accessed
-     * @param   username    the user to access the database as
-     * @param   password    the password with which to access the database
-     * TODO     perhaps change this to public Database connect(...) and remove all public constructors
+     *
+     * @param databaseURL the URL at which the database can be accessed
+     * @param username    the user to access the database as
+     * @param password    the password with which to access the database
+     *                    TODO perhaps change this to public Database connect(...) and remove all public constructors
      */
     public Database(String databaseURL, String username, String password) throws PSQLException {
         try {
@@ -52,7 +55,8 @@ public class Database {
 
     /**
      * Creates a new table in the open database
-     * @param   tableDefinition    The definition of the table to create; this should include the entire sql command
+     *
+     * @param tableDefinition The definition of the table to create; this should include the entire sql command
      */
     public void createTable(String tableDefinition) {
         try {
@@ -65,28 +69,29 @@ public class Database {
 
     /**
      * Inserts the provided row of data into the psql data in a non-generic way
-     * @param   tableName       The name of the table to which append this row of data
-     * @param   pullNumber      The ID number of this scrape
-     * @param   ldt             The DateTime at which the scrape was acquired - this should be UTC
-     * @param   searchTerm      The tag which the data represents
-     * @param   rankings        The list of servers associated with this tag
-     * @return  The PSQL string that will be used to insert the data
-     * @throws  SQLException    The input data is wrong or cannot be parsed
+     *
+     * @param tableName  The name of the table to which append this row of data
+     * @param pullNumber The ID number of this scrape
+     * @param ldt        The DateTime at which the scrape was acquired - this should be UTC
+     * @param searchTerm The tag which the data represents
+     * @param rankings   The list of servers associated with this tag
+     * @return The PSQL string that will be used to insert the data
+     * @throws SQLException The input data is wrong or cannot be parsed
      */
     public String insert(String tableName, int pullNumber, LocalDateTime ldt, Optional<String> searchTerm, String[] rankings) throws SQLException {
 
         StringBuilder insertString = new StringBuilder(
-            String.format("insert into %s (pullnumber, pulltime, searchterm, servername, rank) values ", tableName))
+                String.format("insert into %s (pullnumber, pulltime, searchterm, servername, rank) values ", tableName))
                 .append(
-                    IntStream.rangeClosed(1, rankings.length)
-                        .mapToObj(i -> String.format(
-                            "(%d, '%s', '%s', %s, %d)",
-                            pullNumber,
-                            ldt.toString(),
-                            searchTerm.orElse("NULL"),
-                            rankings[i-1],
-                            i))
-                        .collect(Collectors.joining(", ")))
+                        IntStream.rangeClosed(1, rankings.length)
+                                .mapToObj(i -> String.format(
+                                        "(%d, '%s', '%s', %s, %d)",
+                                        pullNumber,
+                                        ldt.toString(),
+                                        searchTerm.orElse("NULL"),
+                                        rankings[i - 1],
+                                        i))
+                                .collect(Collectors.joining(", ")))
                 .append(";");
 
 
@@ -98,9 +103,10 @@ public class Database {
     /**
      * Allows a generic PSQL query statement to be executed on the DB
      * The caller is responsible for closing the returned ResultSet
-     * @param   query           The PSQL query statement to execute
-     * @return  The result of the PSQL query
-     * @throws  SQLException    The query could not be processed
+     *
+     * @param query The PSQL query statement to execute
+     * @return The result of the PSQL query
+     * @throws SQLException The query could not be processed
      */
     public ResultSet directQuery(String query) throws SQLException {
         Statement statement;
@@ -113,8 +119,9 @@ public class Database {
 
     /**
      * Allow a generic non-returning PSQL statement to be executed on the DB
-     * @param statementString   The PSQL statement to execute
-     * @throws SQLException     The statement could not be processed
+     *
+     * @param statementString The PSQL statement to execute
+     * @throws SQLException The statement could not be processed
      */
     public void directStatement(String statementString) throws SQLException {
         Statement statement = connection.createStatement();
@@ -136,7 +143,8 @@ public class Database {
     /**
      * Closes the DB once the user has completed their task(s)
      * This should be called at the first opportunity to prevent memory leaks and to prevent transfer data overuse
-     * @throws  SQLException    The Database is probably already closed
+     *
+     * @throws SQLException The Database is probably already closed
      */
     public void close() throws SQLException {
         connection.close();
@@ -144,7 +152,8 @@ public class Database {
 
     /**
      * Print the exception's stack trace, name, and message; and attempt to continue execution
-     * @param   e   The exception to "handle"
+     *
+     * @param e The exception to "handle"
      */
     private void genericHandleException(Exception e) {
         e.printStackTrace();

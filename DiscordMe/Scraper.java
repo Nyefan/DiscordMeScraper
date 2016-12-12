@@ -3,7 +3,6 @@ package DiscordMe;
 import com.jaunt.Element;
 import com.jaunt.JauntException;
 import com.jaunt.UserAgent;
-
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -27,11 +26,12 @@ import java.util.stream.Stream;
 
 /**
  * A basic scraper for discord.me
- * @author  Nyefan
- * contact  nyefancoding@gmail.com
- * github   github.com/nyefan
+ *
+ * @author Nyefan
+ *         contact  nyefancoding@gmail.com
+ *         github   github.com/nyefan
  * @version 1.2
- * @since   2016-12(DEC)-11
+ * @since 2016-12(DEC)-11
  * depends  jaunt1.2.3, json-simple-1.1.1
  * TODO ensure this isn't the source of external connections failing
  */
@@ -56,16 +56,16 @@ public class Scraper {
         IntStream.rangeClosed(1, searchTerms.length)
                 .forEach(i -> {
                     try {
-                        System.out.print(String.format("Inserting results of query '%s'...", searchTerms[i-1]));
+                        System.out.print(String.format("Inserting results of query '%s'...", searchTerms[i - 1]));
                         db.insert(
                                 "rankings",
                                 pullNumber,
                                 LocalDateTime.now(ZoneId.of("UTC")),
-                                Optional.ofNullable(searchTerms[i-1]),
-                                queryPages(searchTerms[i-1], 1, maxPages));
+                                Optional.ofNullable(searchTerms[i - 1]),
+                                queryPages(searchTerms[i - 1], 1, maxPages));
                         System.out.println("Done!");
                     } catch (SQLException e) {
-                        System.err.println(String.format("Search Term '%s' failed.", searchTerms[i-1]));
+                        System.err.println(String.format("Search Term '%s' failed.", searchTerms[i - 1]));
                         e.printStackTrace();
                     }
                 });
@@ -76,8 +76,9 @@ public class Scraper {
 
     /**
      * Completes the query and prints the results to the console
-     * @param   searchTerm  The tag to be entered in the search box on discord.me
-     * @param   pageNumber  The number of pages (set of 32) to query, starting from 1
+     *
+     * @param searchTerm The tag to be entered in the search box on discord.me
+     * @param pageNumber The number of pages (set of 32) to query, starting from 1
      */
     private static void queryAndPrintResultsToConsole(String searchTerm, int pageNumber) {
         System.out.println(LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")));
@@ -87,15 +88,16 @@ public class Scraper {
         String[] serverNames = queryPages(searchTerm, 1, pageNumber);
         IntStream.rangeClosed(1, serverNames.length)
                 //This will break non-catastrophically if the number of servers queried is over 999
-                .mapToObj(i -> String.format("%4s: %s", "#" + i, serverNames[i-1].replace("$ServerName$", "")))
+                .mapToObj(i -> String.format("%4s: %s", "#" + i, serverNames[i - 1].replace("$ServerName$", "")))
                 .forEach(System.out::println);
     }
 
     /**
      * Returns a list of Server Names in the order they are ranked by discord.me for a given tag and page
-     * @param   searchTerm  The tag to be entered in the search box on discord.me
-     * @param   pageNumber  The page (set of 32) to query
-     * @return  An array of Server Names from the queried page - length 32
+     *
+     * @param searchTerm The tag to be entered in the search box on discord.me
+     * @param pageNumber The page (set of 32) to query
+     * @return An array of Server Names from the queried page - length 32
      */
     private static String[] queryPage(String searchTerm, int pageNumber) throws JauntException {
 
@@ -116,10 +118,11 @@ public class Scraper {
     /**
      * Returns a list of Server Names in the order they are ranked by discord.me for a given tag and set of (inclusive)
      * pages.  The caller is responsible for ensuring that first <= last
-     * @param   searchTerm    The tag to be entered in the search box on discord.me
-     * @param   first         The first page (set of 32) in the range to query
-     * @param   last          The last page (set of 32) in the range to query
-     * @return  an array of Server Names from the queried page range
+     *
+     * @param searchTerm The tag to be entered in the search box on discord.me
+     * @param first      The first page (set of 32) in the range to query
+     * @param last       The last page (set of 32) in the range to query
+     * @return an array of Server Names from the queried page range
      */
     private static String[] queryPages(String searchTerm, int first, int last) {
         return IntStream
@@ -161,7 +164,7 @@ public class Scraper {
         }
 
         try {
-            JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("DBINFO.json"));
+            final JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("DBINFO.json"));
 
             String db_url = (String) connectionParameters.get("db_url");
             String user = (String) connectionParameters.get("user");
@@ -192,13 +195,13 @@ public class Scraper {
             e.printStackTrace();
             System.exit(4);
         } finally {
-                try {
-                    if (db != null) {
-                        db.close();
-                    }
-                } catch (SQLException sqle) {
-                    sqle.printStackTrace();
+            try {
+                if (db != null) {
+                    db.close();
                 }
+            } catch (SQLException sqle) {
+                sqle.printStackTrace();
+            }
         }
 
         try {
