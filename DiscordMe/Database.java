@@ -17,9 +17,6 @@ import java.util.stream.IntStream;
  * @version 1.0
  * @since   2016-12(DEC)-08
  * depends  posgresql-9.4.1212
- * @implNote
- * TODO     add an insert command
- * TODO     wrap insert statements in a rowObject of some kind
  */
 public class Database {
 

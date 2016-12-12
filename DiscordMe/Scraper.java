@@ -30,11 +30,10 @@ import java.util.stream.Stream;
  * @author  Nyefan
  * contact  nyefancoding@gmail.com
  * github   github.com/nyefan
- * @version 1.1
- * @since   2016-12(DEC)-08
+ * @version 1.2
+ * @since   2016-12(DEC)-11
  * depends  jaunt1.2.3, json-simple-1.1.1
- * @implNote
- * //TODO ensure this isn't the source of external connections failing
+ * TODO ensure this isn't the source of external connections failing
  */
 public class Scraper {
 
@@ -120,7 +119,7 @@ public class Scraper {
      * @param   searchTerm    The tag to be entered in the search box on discord.me
      * @param   first         The first page (set of 32) in the range to query
      * @param   last          The last page (set of 32) in the range to query
-     * @return  an array of Servery Names from the queried page range
+     * @return  an array of Server Names from the queried page range
      */
     private static String[] queryPages(String searchTerm, int first, int last) {
         return IntStream
