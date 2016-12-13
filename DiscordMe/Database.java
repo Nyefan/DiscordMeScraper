@@ -47,10 +47,10 @@ public class Database {
                             username,
                             password);
             connection.setAutoCommit(false);
+            System.out.println("Opened database successfully");
         } catch (ClassNotFoundException | SQLException e) {
             genericHandleException(e);
         }
-        System.out.println("Opened database successfully");
     }
 
     /**

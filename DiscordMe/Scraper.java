@@ -56,13 +56,14 @@ public class Scraper {
         IntStream.rangeClosed(1, searchTerms.length)
                 .forEach(i -> {
                     try {
+                        Optional<String> tag = Optional.ofNullable(searchTerms[i-1]);
                         System.out.print(String.format("Inserting results of query '%s'...", searchTerms[i - 1]));
                         db.insert(
                                 "rankings",
                                 pullNumber,
                                 LocalDateTime.now(ZoneId.of("UTC")),
-                                Optional.ofNullable(searchTerms[i - 1]),
-                                queryPages(searchTerms[i - 1], 1, maxPages));
+                                tag,
+                                queryPages(tag, 1, maxPages));
                         System.out.println("Done!");
                     } catch (SQLException e) {
                         System.err.println(String.format("Search Term '%s' failed.", searchTerms[i - 1]));
@@ -80,9 +81,9 @@ public class Scraper {
      * @param searchTerm The tag to be entered in the search box on discord.me
      * @param pageNumber The number of pages (set of 32) to query, starting from 1
      */
-    private static void queryAndPrintResultsToConsole(String searchTerm, int pageNumber) {
+    private static void queryAndPrintResultsToConsole(Optional<String> searchTerm, int pageNumber) {
         System.out.println(LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")));
-        System.out.println("Discord.me rankings by term - " + searchTerm + ": ");
+        System.out.println("Discord.me rankings by term - " + searchTerm.orElse("none") + ": ");
         System.out.println("Pages 1-" + pageNumber);
 
         String[] serverNames = queryPages(searchTerm, 1, pageNumber);
@@ -99,13 +100,13 @@ public class Scraper {
      * @param pageNumber The page (set of 32) to query
      * @return An array of Server Names from the queried page - length 32
      */
-    private static String[] queryPage(String searchTerm, int pageNumber) throws JauntException {
+    private static String[] queryPage(Optional<String> searchTerm, int pageNumber) throws JauntException {
 
         final String dollarQuote = "$ServerName$";
 
 
         UserAgent userAgent = new UserAgent();
-        return userAgent.visit(String.format("https://discord.me/servers/%s/%s", pageNumber, searchTerm))
+        return userAgent.visit(String.format("https://discord.me/servers/%s/%s", pageNumber, searchTerm.orElse("")))
                 .findFirst("<div class=col-md-8>")
                 .findEvery("<span class=server-name>")
                 .toList()
@@ -123,8 +124,9 @@ public class Scraper {
      * @param first      The first page (set of 32) in the range to query
      * @param last       The last page (set of 32) in the range to query
      * @return an array of Server Names from the queried page range
+     * TODO early termination for empty pages
      */
-    private static String[] queryPages(String searchTerm, int first, int last) {
+    private static String[] queryPages(Optional<String> searchTerm, int first, int last) {
         return IntStream
                 .rangeClosed(first, last)
                 .mapToObj((int i) -> {
@@ -182,8 +184,9 @@ public class Scraper {
                 user = in.nextLine();
             }
 
+            //TODO
             if (pass == null) {
-                System.out.println("Please enter your password: ");
+                System.out.print("Please enter your token: ");
                 pass = in.nextLine();
             }
 
@@ -194,14 +197,6 @@ public class Scraper {
         } catch (PSQLException e) {
             e.printStackTrace();
             System.exit(4);
-        } finally {
-            try {
-                if (db != null) {
-                    db.close();
-                }
-            } catch (SQLException sqle) {
-                sqle.printStackTrace();
-            }
         }
 
         try {
