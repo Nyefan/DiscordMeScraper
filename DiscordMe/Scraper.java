@@ -53,11 +53,11 @@ public class Scraper {
 
         tryInitialization();
 
-        IntStream.rangeClosed(1, searchTerms.length)
-                .forEach(i -> {
+        Arrays.stream(searchTerms)
+                .forEach(term -> {
                     try {
-                        Optional<String> tag = Optional.ofNullable(searchTerms[i-1]);
-                        System.out.print(String.format("Inserting results of query '%s'...", searchTerms[i - 1]));
+                        Optional<String> tag = Optional.ofNullable(term);
+                        System.out.print(String.format("Inserting results of query '%s'...", term));
                         db.insert(
                                 "rankings",
                                 pullNumber,
@@ -66,27 +66,27 @@ public class Scraper {
                                 queryPages(tag, 1, maxPages));
                         System.out.println("Done!");
                     } catch (SQLException e) {
-                        System.err.println(String.format("Search Term '%s' failed.", searchTerms[i - 1]));
+                        System.err.println(String.format("Search Term '%s' failed.", term));
                         e.printStackTrace();
                     }
                 });
 
         db.commit();
 
+        //Arrays.stream(searchTerms).map(Optional::of).forEachOrdered(Scraper::queryAndPrintResultsToConsole);
     }
 
     /**
      * Completes the query and prints the results to the console
      *
      * @param searchTerm The tag to be entered in the search box on discord.me
-     * @param pageNumber The number of pages (set of 32) to query, starting from 1
      */
-    private static void queryAndPrintResultsToConsole(Optional<String> searchTerm, int pageNumber) {
+    private static void queryAndPrintResultsToConsole(Optional<String> searchTerm) {
         System.out.println(LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")));
         System.out.println("Discord.me rankings by term - " + searchTerm.orElse("none") + ": ");
-        System.out.println("Pages 1-" + pageNumber);
+        System.out.println("Pages 1-" + maxPages);
 
-        String[] serverNames = queryPages(searchTerm, 1, pageNumber);
+        String[] serverNames = queryPages(searchTerm, 1, maxPages);
         IntStream.rangeClosed(1, serverNames.length)
                 //This will break non-catastrophically if the number of servers queried is over 999
                 .mapToObj(i -> String.format("%4s: %s", "#" + i, serverNames[i - 1].replace("$ServerName$", "")))
@@ -129,6 +129,7 @@ public class Scraper {
     private static String[] queryPages(Optional<String> searchTerm, int first, int last) {
         return IntStream
                 .rangeClosed(first, last)
+                .parallel()
                 .mapToObj((int i) -> {
                     String[] qp = new String[0];
                     try {
