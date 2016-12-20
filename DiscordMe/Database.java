@@ -1,11 +1,9 @@
 package DiscordMe;
 
 import org.jetbrains.annotations.Contract;
-import org.postgresql.util.PSQLException;
 
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -39,7 +37,7 @@ public class Database {
      * @param password    the password with which to access the database
      *                    TODO perhaps change this to public Database connect(...) and remove all public constructors
      */
-    public Database(String databaseURL, String username, String password) throws PSQLException {
+    public Database(String databaseURL, String username, String password) {
         try {
             Class.forName("org.postgresql.Driver");
             connection = DriverManager

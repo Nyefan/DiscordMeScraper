@@ -7,7 +7,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.postgresql.util.PSQLException;
 
 import java.io.BufferedWriter;
 import java.io.FileReader;
@@ -22,7 +21,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Scanner;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -97,7 +95,6 @@ public class Scraper {
      */
     private static void queryAndPrintResultsToFile(String term) {
         String[] serverNames = queryPages(term, 1, maxPages);
-        //String[] serverNames = {"", "test1", "test2"};
         String nonNullTerm = (term==null|term.equals(""))?"Front Page":term;
         String outputFolderName = "results";
         Path outputFolderPath = Paths.get(outputFolderName);
@@ -235,7 +232,11 @@ public class Scraper {
         }
 
         //Determine the query type
-        queryType = (String) queryParameters.getOrDefault("query_type", queryType);
+        try {
+            queryType = (String) queryParameters.getOrDefault("query_type", queryType);
+        } catch (ClassCastException | NullPointerException e) {
+            //do nothing; the program will perform the default type of query
+        }
 
         //Connect to the database if appropriate
         if(queryType.equalsIgnoreCase("database")) {
@@ -267,9 +268,6 @@ public class Scraper {
             } catch (ParseException | IOException e) {
                 e.printStackTrace();
                 System.exit(3);
-            } catch (PSQLException e) {
-                e.printStackTrace();
-                System.exit(4);
             }
 
             try {
