@@ -78,7 +78,7 @@ public class Database {
      * @return The PSQL string that will be used to insert the data
      * @throws SQLException The input data is wrong or cannot be parsed
      */
-    public String insert(String tableName, int pullNumber, LocalDateTime ldt, Optional<String> searchTerm, String[] rankings) throws SQLException {
+    public String insert(String tableName, int pullNumber, LocalDateTime ldt, String searchTerm, String[] rankings) throws SQLException {
 
         StringBuilder insertString = new StringBuilder(
                 String.format("insert into %s (pullnumber, pulltime, searchterm, servername, rank) values ", tableName))
@@ -88,7 +88,7 @@ public class Database {
                                         "(%d, '%s', '%s', %s, %d)",
                                         pullNumber,
                                         ldt.toString(),
-                                        searchTerm.orElse("NULL"),
+                                        searchTerm,
                                         rankings[i - 1],
                                         i))
                                 .collect(Collectors.joining(", ")))
