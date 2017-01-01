@@ -25,7 +25,6 @@ import java.util.Scanner;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-
 /**
  * A basic scraper for discord.me
  * depends  jaunt1.2.3, json-simple-1.1.1
@@ -213,14 +212,14 @@ public class Scraper {
      */
     private static void tryInitialization() {
         //Ensure that the Jaunt license is not violated
-        if (LocalDateTime.now().isAfter(LocalDate.of(2017, 1, 1).atStartOfDay())) {
+        if (LocalDateTime.now().isAfter(LocalDate.of(2017, 2, 1).atStartOfDay())) {
             System.err.println("The Jaunt license has expired.  Please download the newest version to refresh the license.");
             System.exit(2);
         }
 
         //Load the search terms from SEARCHTERMS.json
         try {
-            queryParameters = (JSONObject) new JSONParser().parse(new FileReader("SEARCHTERMS.json"));
+            queryParameters = (JSONObject) new JSONParser().parse(new FileReader("resources/SEARCHTERMS.json"));
             searchTerms = Stream
                     .of(((JSONArray) queryParameters.get("search_terms")).toArray())
                     .map(i -> (String) i)
@@ -241,7 +240,7 @@ public class Scraper {
         //Connect to the database if appropriate
         if(queryType.equalsIgnoreCase("database")) {
             try {
-                final JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("DBINFO.json"));
+                final JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("resources/DBINFO.json"));
 
                 String db_url = (String) connectionParameters.get("db_url");
                 String user = (String) connectionParameters.get("user");
