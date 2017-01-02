@@ -68,7 +68,6 @@ public class Database {
     /**
      * Inserts the provided row of data into the psql data in a non-generic way
      *
-     * @param tableName  The name of the table to which append this row of data
      * @param pullNumber The ID number of this scrape
      * @param ldt        The DateTime at which the scrape was acquired - this should be UTC
      * @param searchTerm The tag which the data represents
@@ -76,10 +75,10 @@ public class Database {
      * @return The PSQL string that will be used to insert the data
      * @throws SQLException The input data is wrong or cannot be parsed
      */
-    public String insert(String tableName, int pullNumber, LocalDateTime ldt, String searchTerm, String[] rankings) throws SQLException {
+    public String insertTableRankings(int pullNumber, LocalDateTime ldt, String searchTerm, String[] rankings) throws SQLException {
 
-        StringBuilder insertString = new StringBuilder(
-                String.format("insert into %s (pullnumber, pulltime, searchterm, servername, rank) values ", tableName))
+        String insertString = new StringBuilder(
+                "insert into rankings (pullnumber, pulltime, searchterm, servername, rank) values ")
                 .append(
                         IntStream.rangeClosed(1, rankings.length)
                                 .mapToObj(i -> String.format(
@@ -90,12 +89,33 @@ public class Database {
                                         rankings[i - 1],
                                         i))
                                 .collect(Collectors.joining(", ")))
-                .append(";");
+                .append(";")
+                .toString();
 
 
-        directStatement(insertString.toString());
+        directStatement(insertString);
 
-        return insertString.toString();
+        return insertString;
+    }
+
+    public String insertTableServerInfo(String servername, LocalDateTime ldt, DiscordServer[] serverData) throws SQLException {
+        String insertString = new StringBuilder(
+                "insert into serverinfo (servername, discordlink, status, time) values ")
+                .append(
+                        IntStream.range(0, serverData.length)
+                        .mapToObj(i -> String.format(
+                                "($servername$%s$servername$, $serverlink$%s$serverlink$, '%s', '%s')",
+                                serverData[i].name(),
+                                serverData[i].link(),
+                                serverData[i].status(),
+                                ldt.toString()))
+                        .collect(Collectors.joining(", ")))
+                .append(";")
+                .toString();
+
+        directStatement(insertString);
+
+        return insertString;
     }
 
     /**

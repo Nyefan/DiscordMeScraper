@@ -143,8 +143,7 @@ public class Scraper {
      */
     private static void queryAndInsertResultsInDatabase(String term) {
         try {
-            db.insert(
-                    "rankings",
+            db.insertTableRankings(
                     pullNumber,
                     LocalDateTime.now(ZoneId.of("UTC")),
                     term,
