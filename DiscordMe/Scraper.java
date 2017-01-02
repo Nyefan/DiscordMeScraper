@@ -39,12 +39,12 @@ import java.util.stream.Stream;
  */
 public class Scraper {
 
-    private static String[] searchTerms;
-    private static int maxPages;
+    private static String[] searchTerms = new String[]{""};
+    private static int maxPages = -1;
     private static int pullNumber;
     private static Database db;
     private static JSONObject queryParameters;
-    private static String queryType = "database";
+    private static String queryType = "file";
 
     /**
      * exit     1       no valid json file containing the query parameters has been provided
@@ -174,7 +174,7 @@ public class Scraper {
                 .toList()
                 .stream()
                 .map(Element::innerHTML)
-                .map(i -> dollarQuote + i + dollarQuote)
+                .map(i -> dollarQuote + i.trim().substring(0, Math.min(i.trim().length(), 50)) + dollarQuote)//TODO: kill magic number
                 .toArray(String[]::new);
     }
 
@@ -185,10 +185,14 @@ public class Scraper {
      * @param searchTerm The tag to be entered in the search box on discord.me
      * @param first      The first page (set of 32) in the range to query
      * @param last       The last page (set of 32) in the range to query
-     * @return an array of Server Names from the queried page range
+     * @return an array of Server Names for the queried search term from the queried page range
      * TODO early termination for empty pages
      */
     private static String[] queryPages(String searchTerm, int first, int last) {
+        if (last == -1) {
+            return queryAllPages(searchTerm);
+        }
+
         return IntStream
                 .rangeClosed(first, last)
                 .parallel()
@@ -208,6 +212,70 @@ public class Scraper {
     }
 
     /**
+     * Returns a list of all Server Names in the order they are ranked by discord.me for a given tag.
+     *
+     * @param searchTerm The tag to be entered in the search box on discord.me
+     * @return an array of Server Names for the queried search term
+     */
+    private static String[] queryAllPages(String searchTerm) {
+        return queryPages(searchTerm, 1, findLastPage(searchTerm));
+    }
+
+    /**
+     * Helper function for queryAllPages(String).  Returns the maximum page number on which results exist for a given
+     * search term
+     *
+     * @param searchTerm The tag to be entered in the search bos on discord.me
+     * @return the maximum page number on which results exist for the queried search term
+     */
+    private static int findLastPage(String searchTerm) {
+        int lowerBound = 0;
+        int upperBound = 32; //This is high because a binomial search down will be faster as a smaller page is served by discord.me
+        boolean upperBoundFound = false;
+        boolean lastPageFound = false;
+        String[] qp = new String[0];
+
+        //find an upper bound
+        while(!upperBoundFound) {
+            try {
+                qp = queryPage(searchTerm, upperBound);
+            } catch (JauntException e) {
+                e.printStackTrace();
+                System.exit(5);
+            }
+            if(qp.length == 0) {
+                upperBoundFound = true;
+            } else {
+                lowerBound = upperBound;
+                upperBound = 2*upperBound;
+            }
+        }
+
+        //binary search
+        //This could be made while(true), moving the return statement to the final if, but this variation is clearer in intent, imo
+        while(!lastPageFound) {
+            int testPageNumber = (upperBound-lowerBound)/2+lowerBound;
+            try {
+                qp = queryPage(searchTerm, testPageNumber);
+            } catch (JauntException e) {
+                e.printStackTrace();
+                System.exit(5);
+            }
+            if(qp.length == 0) {
+                upperBound = testPageNumber;
+            } else {
+                lowerBound = testPageNumber;
+            }
+
+            if(lowerBound+1==upperBound) {
+                lastPageFound = true;
+            }
+        }
+
+        return lowerBound;
+    }
+
+    /**
      * Abstracts the initialization out of the main function
      */
     private static void tryInitialization() {
@@ -217,18 +285,32 @@ public class Scraper {
             System.exit(2);
         }
 
-        //Load the search terms from SEARCHTERMS.json
+        //Load SEARCHTERMS.json
         try {
             queryParameters = (JSONObject) new JSONParser().parse(new FileReader("resources/SEARCHTERMS.json"));
+        } catch (ParseException | IOException e) {
+            //TODO: set up a logging module
+            //for now, do nothing; the program will use default values
+        }
+
+        //Load the search terms from SEARCHTERMS.json, defaulting to an empty string
+        try {
             searchTerms = Stream
                     .of(((JSONArray) queryParameters.get("search_terms")).toArray())
                     .map(i -> (String) i)
                     .toArray(String[]::new);
-            maxPages = Integer.parseInt((String) queryParameters.get("max_pages"));
-        } catch (ParseException | IOException | NullPointerException e) {
-            e.printStackTrace();
-            System.exit(1);
+        } catch (NullPointerException e) {
+            //do nothing; the program will use the default value
         }
+
+        //Load the maximum number of pages to query from SEARCHTERMS.json, defaulting to -1 (all)
+        try {
+            String tmpMaxPages = (String) queryParameters.get("max_pages");
+            maxPages = (tmpMaxPages.equalsIgnoreCase("all")) ? -1 : Integer.parseInt(tmpMaxPages);
+        } catch (NullPointerException e) {
+            //do nothing; the program will use the default value
+        }
+
 
         //Determine the query type
         try {
