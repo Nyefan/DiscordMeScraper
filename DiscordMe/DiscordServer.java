@@ -34,7 +34,7 @@ public class DiscordServer {
     }
 
     public String link() {
-        return name;
+        return link;
     }
 
     public String status() {

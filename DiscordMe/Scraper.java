@@ -1,8 +1,6 @@
 package DiscordMe;
 
-import com.jaunt.Element;
-import com.jaunt.JauntException;
-import com.jaunt.UserAgent;
+import com.jaunt.*;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -20,8 +18,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.Scanner;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -36,6 +34,9 @@ import java.util.stream.Stream;
  * @since 2016-12(DEC)-11
  * TODO: enumerate the possible values of "queryType"
  * TODO: consider using a switch-case table for the queryTypes in Scraper::main
+ * TODO: split queryDataAndPrintResultsToType into a pair of functions queryData and a trio of functions
+ *       PrintResultsToType; change main to a pair of switch tables using maps of function references to accomodate
+ *       further growth;
  */
 public class Scraper {
 
@@ -45,6 +46,7 @@ public class Scraper {
     private static Database db;
     private static JSONObject queryParameters;
     private static String queryType = "file";
+    private static String queryData = "rank";
 
     /**
      * exit     1       no valid json file containing the query parameters has been provided
@@ -57,18 +59,24 @@ public class Scraper {
 
         tryInitialization();
 
-        if (queryType.equalsIgnoreCase("database")) {
-            Arrays.stream(searchTerms)
-                    .parallel()
-                    .forEach(Scraper::queryAndInsertResultsInDatabase);
-            db.commit();
-        } else if (queryType.equalsIgnoreCase("console")) {
-            Arrays.stream(searchTerms)
-                    .forEachOrdered(Scraper::queryAndPrintResultsToConsole);
-        } else if (queryType.equalsIgnoreCase("file")) {
-            Arrays.stream(searchTerms)
-                    .parallel()
-                    .forEach(Scraper::queryAndPrintResultsToFile);
+        if(queryData.equalsIgnoreCase("rank")) {
+            if (queryType.equalsIgnoreCase("database")) {
+                Arrays.stream(searchTerms)
+                        .parallel()
+                        .forEach(Scraper::queryRankAndInsertResultsInDatabase);
+                db.commit();
+            } else if (queryType.equalsIgnoreCase("console")) {
+                Arrays.stream(searchTerms)
+                        .forEachOrdered(Scraper::queryRankAndPrintResultsToConsole);
+            } else if (queryType.equalsIgnoreCase("file")) {
+                Arrays.stream(searchTerms)
+                        .parallel()
+                        .forEach(Scraper::queryRankAndPrintResultsToFile);
+            }
+        } else if (queryData.equalsIgnoreCase("data")) {
+            if (queryType.equalsIgnoreCase("console")) {
+                queryServerDataAndPrintResultsToConsole();
+            }
         }
     }
 
@@ -76,12 +84,12 @@ public class Scraper {
      * Performs the scrape for a single searchTerm and prints the results to the console
      * @param term The tag to be entered in the search box on discord.me
      */
-    private static void queryAndPrintResultsToConsole(String term) {
+    private static void queryRankAndPrintResultsToConsole(String term) {
         System.out.println(LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")));
         System.out.println("Discord.me rankings by term - " + term + ": ");
         System.out.println("Pages 1-" + maxPages);
 
-        String[] serverNames = queryPages(term, 1, maxPages);
+        String[] serverNames = queryRankPages(term, 1, maxPages);
         IntStream.rangeClosed(1, serverNames.length)
                 //This will break non-catastrophically if the number of servers queried is over 999
                 .mapToObj(i -> String.format("%4s: %s", "#" + i, serverNames[i - 1].replace("$ServerName$", "")))
@@ -92,8 +100,8 @@ public class Scraper {
      * Performs the scrape for a single searchTerm and prints the results to the local file "<searchTerm>.out"
      * @param term The term to query
      */
-    private static void queryAndPrintResultsToFile(String term) {
-        String[] serverNames = queryPages(term, 1, maxPages);
+    private static void queryRankAndPrintResultsToFile(String term) {
+        String[] serverNames = queryRankPages(term, 1, maxPages);
         String nonNullTerm = (term==null|term.equals(""))?"Front Page":term;
         String outputFolderName = "results";
         Path outputFolderPath = Paths.get(outputFolderName);
@@ -141,13 +149,13 @@ public class Scraper {
      * Performs the scrape for a single searchTerm and pushes that result to the Database
      * @param term The term to query
      */
-    private static void queryAndInsertResultsInDatabase(String term) {
+    private static void queryRankAndInsertResultsInDatabase(String term) {
         try {
             db.insertTableRankings(
                     pullNumber,
                     LocalDateTime.now(ZoneId.of("UTC")),
                     term,
-                    queryPages(term, 1, maxPages));
+                    queryRankPages(term, 1, maxPages));
             System.out.println(String.format("Inserting results of query '%s'...Done!", term));
         } catch (SQLException e) {
             System.err.println(String.format("Search Term '%s' failed.", term));
@@ -162,7 +170,7 @@ public class Scraper {
      * @param pageNumber The page (set of 32) to query
      * @return An array of Server Names from the queried page - length 32
      */
-    private static String[] queryPage(String searchTerm, int pageNumber) throws JauntException {
+    private static String[] queryRankPage(String searchTerm, int pageNumber) throws JauntException {
 
         final String dollarQuote = "$ServerName$";
 
@@ -173,6 +181,7 @@ public class Scraper {
                 .toList()
                 .stream()
                 .map(Element::innerHTML)
+                //TODO: move this to Database.java
                 .map(i -> dollarQuote + i.trim().substring(0, Math.min(i.trim().length(), 50)) + dollarQuote)//TODO: kill magic number
                 .toArray(String[]::new);
     }
@@ -187,9 +196,9 @@ public class Scraper {
      * @return an array of Server Names for the queried search term from the queried page range
      * TODO early termination for empty pages
      */
-    private static String[] queryPages(String searchTerm, int first, int last) {
+    private static String[] queryRankPages(String searchTerm, int first, int last) {
         if (last == -1) {
-            return queryAllPages(searchTerm);
+            return queryAllRankPages(searchTerm);
         }
 
         return IntStream
@@ -198,7 +207,7 @@ public class Scraper {
                 .mapToObj((int i) -> {
                     String[] qp = new String[0];
                     try {
-                        qp = queryPage(searchTerm, i);
+                        qp = queryRankPage(searchTerm, i);
                     } catch (JauntException e) {
                         e.printStackTrace();
                         //This is preferable to writing an incomplete list to the db
@@ -216,12 +225,63 @@ public class Scraper {
      * @param searchTerm The tag to be entered in the search box on discord.me
      * @return an array of Server Names for the queried search term
      */
-    private static String[] queryAllPages(String searchTerm) {
-        return queryPages(searchTerm, 1, findLastPage(searchTerm));
+    private static String[] queryAllRankPages(String searchTerm) {
+        return queryRankPages(searchTerm, 1, findLastPage(searchTerm));
     }
 
     /**
-     * Helper function for queryAllPages(String).  Returns the maximum page number on which results exist for a given
+     * Scrapes the data for each DiscordServer on discord.me and prints the results to the console
+     */
+    private static void queryServerDataAndPrintResultsToConsole() {
+        System.out.println(LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")));
+        System.out.println("Discord.me server data: ");
+
+        ArrayList<DiscordServer> serverData = queryServerData();
+        serverData.stream()
+                .map(i -> String.format("%s\t%s\t%s", i.name(), i.link(), i.status()))
+                .forEach(System.out::println);
+    }
+
+    /**
+     * Returns a list of DiscordServers scraped from discord.me
+     *
+     * @return an ArrayList of DiscordServers advertising on discord.me
+     */
+    private static ArrayList<DiscordServer> queryServerData() {
+        int numPages = (maxPages==-1)?findLastPage(""): maxPages;
+        LinkedList<DiscordServer> serverData = new LinkedList<>();
+        UserAgent userAgent = new UserAgent();
+
+        IntStream.rangeClosed(1, numPages)
+                .forEach(pageNumber -> {
+                    try {
+                        userAgent.visit(String.format("https://discord.me/servers/%s/", pageNumber))
+                                .findFirst("<div class=col-md-8>")
+                                .findEvery("<div class='server-card.*'>")
+                                .toList()
+                                .forEach(i -> {
+                                    try {
+                                        serverData.add(
+                                                new DiscordServer(
+                                                        i.findFirst("<span class=server-name>").innerHTML(),
+                                                        i.findFirst("<a href='.*'").getAtString("href"),
+                                                        Arrays.stream(i.getAtString("class").split(" "))
+                                                                .filter(j -> !(j.equalsIgnoreCase("server-card") || j.equalsIgnoreCase("interspersed-server")))
+                                                                .collect(Collectors.joining(" ")).trim()));
+                                    } catch (NotFound notFound) {
+                                        System.err.println("Parsing failed on: " + i.innerHTML());
+                                    }
+                                });
+                    } catch (JauntException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+        return new ArrayList<>(serverData);
+    }
+
+    /**
+     * Helper function for queryAllRankPages(String).  Returns the maximum page number on which results exist for a given
      * search term
      *
      * @param searchTerm The tag to be entered in the search bos on discord.me
@@ -237,7 +297,7 @@ public class Scraper {
         //find an upper bound
         while(!upperBoundFound) {
             try {
-                qp = queryPage(searchTerm, upperBound);
+                qp = queryRankPage(searchTerm, upperBound);
             } catch (JauntException e) {
                 e.printStackTrace();
                 System.exit(5);
@@ -255,7 +315,7 @@ public class Scraper {
         while(!lastPageFound) {
             int testPageNumber = (upperBound-lowerBound)/2+lowerBound;
             try {
-                qp = queryPage(searchTerm, testPageNumber);
+                qp = queryRankPage(searchTerm, testPageNumber);
             } catch (JauntException e) {
                 e.printStackTrace();
                 System.exit(5);
@@ -319,7 +379,7 @@ public class Scraper {
         }
 
         //Connect to the database if appropriate
-        if(queryType.equalsIgnoreCase("database")) {
+        if (queryType.equalsIgnoreCase("database")) {
             try {
                 final JSONObject connectionParameters = (JSONObject) new JSONParser().parse(new FileReader("resources/DBINFO.json"));
 
@@ -359,6 +419,12 @@ public class Scraper {
                 e.printStackTrace();
                 System.err.println("This should not happen - it means the sql query generated by the program is wrong.");
             }
+        }
+
+        try {
+            queryData = (String) queryParameters.getOrDefault("query_data", queryType);
+        } catch (ClassCastException | NullPointerException e) {
+            //do nothing; the program will scrape the default data
         }
     }
 }
